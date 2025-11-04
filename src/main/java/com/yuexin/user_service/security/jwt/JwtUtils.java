@@ -10,12 +10,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.security.Key;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
@@ -37,11 +41,12 @@ public class JwtUtils {
     }
 
     public String generateJwtTokenFromUsername(UserDetails userDetails) {
-        String username = userDetails.getUsername();
+        List<String> roles = authoritiesToStrings(userDetails.getAuthorities());
         return Jwts.builder()
-                .subject(username)
+                .subject(userDetails.getUsername())
                 .issuedAt(new Date())
                 .expiration(new Date(new Date().getTime() + jwtExpirationsMs))
+                .claim("roles", roles)
                 .signWith(key())
                 .compact();
     }
@@ -77,5 +82,10 @@ public class JwtUtils {
 
     private Key key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+    }
+
+    private List<String> authoritiesToStrings(Collection<? extends GrantedAuthority> authorities) {
+        return authorities == null ? List.of()
+                : authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList());
     }
 }
